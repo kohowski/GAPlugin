@@ -1,5 +1,7 @@
 #import "GAPlugin.h"
 #import "AppDelegate.h"
+#import "GAIDictionaryBuilder.h"
+#import "GAIFields.h"
 
 @implementation GAPlugin
 - (void) initGA:(CDVInvokedUrlCommand*)command
@@ -16,7 +18,7 @@
     // Create tracker instance.
     [[GAI sharedInstance] trackerWithTrackingId:accountID];
     // Set the appVersion equal to the CFBundleVersion
-    [GAI sharedInstance].defaultTracker.appVersion = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleVersion"];
+    [[[GAI sharedInstance] defaultTracker] set:kGAIAppVersion value:[[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleVersion"]];
     inited = YES;
 
     [self successWithMessage:[NSString stringWithFormat:@"initGA: accountID = %@; Interval = %d seconds",accountID, dispatchPeriod] toID:callbackId];
@@ -26,9 +28,9 @@
 {
     NSString *callbackId = command.callbackId;
 
-    if (inited)
-        [[[GAI sharedInstance] defaultTracker] close];
-
+//    if (inited)
+//        [[[GAI sharedInstance] defaultTracker] close];
+//
     [self successWithMessage:@"exitGA" toID:callbackId];
 }
 
@@ -43,11 +45,11 @@
 
     if (inited)
     {
-        BOOL result = [[[GAI sharedInstance] defaultTracker] sendEventWithCategory:category withAction:eventAction withLabel:eventLabel withValue:[NSNumber numberWithInt:eventValue]];
-        if (result)
+        [[[GAI sharedInstance] defaultTracker] send:[[GAIDictionaryBuilder createEventWithCategory:category
+            action:eventAction
+            label:eventLabel
+            value:[NSNumber numberWithInt:eventValue]] build]];
             [self successWithMessage:[NSString stringWithFormat:@"trackEvent: category = %@; action = %@; label = %@; value = %d", category, eventAction, eventLabel, eventValue] toID:callbackId];
-        else
-            [self failWithMessage:@"trackEvent failed" toID:callbackId withError:error];
     }
     else
         [self failWithMessage:@"trackEvent failed - not initialized" toID:callbackId withError:nil];
@@ -61,12 +63,10 @@
     if (inited)
     {
         NSError *error = nil;
-        BOOL    result = [[[GAI sharedInstance] defaultTracker] sendView:pageURL];
+        [[[GAI sharedInstance] defaultTracker] set:kGAIScreenName value:pageURL];
+        [[[GAI sharedInstance] defaultTracker] send:[[GAIDictionaryBuilder createAppView] build]];
 
-        if (result)
-            [self successWithMessage:[NSString stringWithFormat:@"trackPage: url = %@", pageURL] toID:callbackId];
-        else
-            [self failWithMessage:@"trackPage failed" toID:callbackId withError:error];
+        [self successWithMessage:[NSString stringWithFormat:@"trackPage: url = %@", pageURL] toID:callbackId];
     }
     else
         [self failWithMessage:@"trackPage failed - not initialized" toID:callbackId withError:nil];
@@ -81,12 +81,9 @@
     if (inited)
     {
         NSError *error = nil;
-        BOOL    result = [[[GAI sharedInstance] defaultTracker] setCustom:index dimension:value];
+        [[[GAI sharedInstance] defaultTracker] set:[GAIFields customMetricForIndex:index] value:value];
 
-        if (result)
-            [self successWithMessage:[NSString stringWithFormat:@"setVariable: index = %d, value = %@;", index, value] toID:callbackId];
-        else
-            [self failWithMessage:@"setVariable failed" toID:callbackId withError:error];
+        [self successWithMessage:[NSString stringWithFormat:@"setVariable: index = %d, value = %@;", index, value] toID:callbackId];
     }
     else
         [self failWithMessage:@"setVariable failed - not initialized" toID:callbackId withError:nil];
@@ -109,7 +106,7 @@
 
 -(void)dealloc
 {
-    [[[GAI sharedInstance] defaultTracker] close];
+//    [[[GAI sharedInstance] defaultTracker] close];
    // [super dealloc];
 }
 
